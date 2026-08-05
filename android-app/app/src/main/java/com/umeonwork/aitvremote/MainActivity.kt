@@ -26,13 +26,13 @@ import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.Path
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import com.squareup.moshi.Types
 import android.content.Context
-import android.content.SharedPreferences
 
 // Simple models matching the server API
 data class Device(val id: String, val name: String?, val socketId: String?, val lastSeen: Long?, val meta: Map<String, Any>?)
@@ -41,16 +41,16 @@ data class CommandRequest(val command: String, val params: Map<String, Any>? = n
 
 data class PairRequestResponse(val id: String, val pin: String)
 
-data class PairStatusResponse(val confirmed: Boolean, val deviceRegistered: Boolean)
+data class PairStatusResponse(val confirmed: Boolean, val deviceRegistered: Boolean, val token: String?)
 
-data class PairedDevice(val id: String, val name: String?)
+data class PairedDevice(val id: String, val name: String?, val token: String)
 
 interface ApiService {
     @GET("/api/devices")
     suspend fun getDevices(): List<Device>
 
     @POST("/api/devices/{id}/command")
-    suspend fun sendCommand(@Path("id") id: String, @Body payload: CommandRequest)
+    suspend fun sendCommand(@Path("id") id: String, @Body payload: CommandRequest, @Header("X-Pair-Token") token: String)
 
     @POST("/api/pair/request")
     suspend fun pairRequest(@Body body: Map<String, String>? = null): PairRequestResponse
@@ -76,9 +76,10 @@ class MainActivity : ComponentActivity() {
 
     private fun createApi(): ApiService {
         val base = System.getenv("AITV_API") ?: "http://10.0.2.2:3001"
+        val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
         val retrofit = Retrofit.Builder()
             .baseUrl(base)
-            .addConverterFactory(MoshiConverterFactory.create())
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
         return retrofit.create(ApiService::class.java)
     }
@@ -148,8 +149,9 @@ fun RemoteScreen(api: ApiService, appContext: Context) {
                                 Text(p.name ?: p.id, fontWeight = FontWeight.Medium)
                             }
                             Text("Remove", color = Color.Red, modifier = Modifier.clickable {
-                                paired = paired.filter { it.id != p.id }
-                                savePairedDevices(appContext, paired)
+                                val newList = paired.filter { it.id != p.id }
+                                paired = newList
+                                savePairedDevices(appContext, newList)
                             })
                         }
                     }
@@ -168,12 +170,12 @@ fun RemoteScreen(api: ApiService, appContext: Context) {
                                 delay(2000)
                                 try {
                                     val status = api.pairStatus(resp.id)
-                                    if (status.confirmed) {
+                                    if (status.confirmed && status.token != null) {
                                         confirmed = true
                                         // fetch devices and add to paired list
                                         val all = api.getDevices()
                                         val d = all.find { it.id == resp.id }
-                                        val pd = PairedDevice(resp.id, d?.name ?: "Unknown")
+                                        val pd = PairedDevice(resp.id, d?.name ?: "Unknown", status.token)
                                         paired = (paired + pd).distinctBy { it.id }
                                         savePairedDevices(appContext, paired)
                                         Toast.makeText(context, "Paired with ${pd.name}", Toast.LENGTH_SHORT).show()
@@ -254,9 +256,14 @@ fun RemoteScreen(api: ApiService, appContext: Context) {
                         for (b in row) {
                             Button(onClick = {
                                 if (selectedId == null) return@Button
+                                val pairedEntry = paired.find { it.id == selectedId }
+                                if (pairedEntry == null) {
+                                    Toast.makeText(context, "Device not paired. Pair first.", Toast.LENGTH_SHORT).show()
+                                    return@Button
+                                }
                                 scope.launch {
                                     try {
-                                        api.sendCommand(selectedId!!, CommandRequest(b))
+                                        api.sendCommand(selectedId!!, CommandRequest(b), pairedEntry.token)
                                     } catch (e: Exception) {
                                         Toast.makeText(context, "Failed to send command", Toast.LENGTH_SHORT).show()
                                     }
