@@ -1,0 +1,10 @@
+.app { display:flex; font-family:Arial, sans-serif; height:100vh; }
+.sidebar { width:220px; border-right:1px solid #ddd; padding:12px; box-sizing:border-box; }
+.sidebar h3 { margin-top:0; }
+.sidebar ul { list-style:none; padding:0; margin:0; }
+.sidebar li { padding:8px; margin-bottom:6px; cursor:pointer; display:flex; justify-content:space-between; border-radius:6px; }
+.sidebar li.selected { background:#eef; }
+.remote { flex:1; padding:20px; }
+.buttons-grid { display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; max-width:600px; }
+.btn { padding:14px; border-radius:8px; border:1px solid #ccc; background:#fafafa; cursor:pointer; }
+.btn:active { transform:translateY(1px); }
