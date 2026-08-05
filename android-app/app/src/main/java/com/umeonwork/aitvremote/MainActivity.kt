@@ -33,6 +33,9 @@ import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import com.squareup.moshi.Types
 import android.content.Context
+import android.content.SharedPreferences
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import org.json.JSONArray
 
 // Simple models matching the server API
@@ -66,6 +69,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Migrate any plaintext prefs to encrypted storage before UI loads
+        migratePlainToEncrypted(applicationContext)
+
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
@@ -95,8 +102,39 @@ class MainActivity : ComponentActivity() {
 private const val PREFS = "aitv_prefs"
 private const val KEY_PAIRED = "paired_devices"
 
+private fun getEncryptedPrefs(context: Context): SharedPreferences {
+    val masterKey = MasterKey.Builder(context)
+        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+        .build()
+
+    return EncryptedSharedPreferences.create(
+        context,
+        "aitv_secure_prefs",
+        masterKey,
+        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+    )
+}
+
+fun migratePlainToEncrypted(context: Context) {
+    try {
+        val plain = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (plain.contains(KEY_PAIRED)) {
+            val json = plain.getString(KEY_PAIRED, null)
+            if (!json.isNullOrEmpty()) {
+                val enc = getEncryptedPrefs(context)
+                enc.edit().putString(KEY_PAIRED, json).apply()
+            }
+            plain.edit().remove(KEY_PAIRED).apply()
+        }
+    } catch (e: Exception) {
+        // Migration failed; ignore and continue with empty encrypted store
+        e.printStackTrace()
+    }
+}
+
 fun loadPairedDevices(context: Context): List<PairedDevice> {
-    val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    val prefs = getEncryptedPrefs(context)
     val json = prefs.getString(KEY_PAIRED, null) ?: return emptyList()
     return try {
         val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
@@ -109,7 +147,7 @@ fun loadPairedDevices(context: Context): List<PairedDevice> {
 }
 
 fun savePairedDevices(context: Context, list: List<PairedDevice>) {
-    val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    val prefs = getEncryptedPrefs(context)
     val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
     val type = Types.newParameterizedType(List::class.java, PairedDevice::class.java)
     val adapter = moshi.adapter<List<PairedDevice>>(type)
