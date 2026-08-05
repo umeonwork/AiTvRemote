@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Wireless Signal Waves (Top Right) -->
+    <!-- Signal Inner Arc -->
+    <path
+        android:pathData="M 66,22 A 12,12 0 0,1 78,34"
+        android:strokeColor="#00E5FF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+    
+    <!-- Signal Outer Arc -->
+    <path
+        android:pathData="M 66,15 A 19,19 0 0,1 85,34"
+        android:strokeColor="#00E5FF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+
+    <!-- Remote Body Shadow / Glow -->
+    <path
+        android:pathData="M 32,26 C 32,22 35,19 39,19 L 69,19 C 73,19 76,22 76,26 L 76,87 C 76,91 73,94 69,94 L 39,94 C 35,94 32,91 32,87 Z"
+        android:fillColor="#151A23" />
+
+    <!-- Remote Main Body -->
+    <path
+        android:pathData="M 33,25 C 33,21.5 35.8,18.7 39.3,18.7 L 68.7,18.7 C 72.2,18.7 75,21.5 75,25 L 75,86 C 75,89.5 72.2,92.3 68.7,92.3 L 39.3,92.3 C 35.8,92.3 33,89.5 33,86 Z"
+        android:fillColor="#222733" />
+
+    <!-- Remote Bezel / Inner Face -->
+    <path
+        android:pathData="M 35,26 C 35,23.5 37,21.5 39.5,21.5 L 68.5,21.5 C 71,21.5 73,23.5 73,26 L 73,85 C 73,87.5 71,89.5 68.5,89.5 L 39.5,89.5 C 37,89.5 35,87.5 35,85 Z"
+        android:fillColor="#2D3442" />
+
+    <!-- Top Action Buttons -->
+    <!-- Red Button -->
+    <path
+        android:pathData="M 39,26 C 39,25 40,24 41,24 L 49,24 C 50,24 51,25 51,26 L 51,28 C 51,29 50,30 49,30 L 41,30 C 40,30 39,29 39,28 Z"
+        android:fillColor="#FF3B30" />
+
+    <!-- Green Button -->
+    <path
+        android:pathData="M 57,26 C 57,25 58,24 59,24 L 67,24 C 68,24 69,25 69,26 L 69,28 C 69,29 68,30 67,30 L 59,30 C 58,30 57,29 57,28 Z"
+        android:fillColor="#34C759" />
+
+    <!-- Keypad Grid Row 1 -->
+    <path
+        android:pathData="M 39,35 L 47,35 L 47,39 L 39,39 Z M 50,35 L 58,35 L 58,39 L 50,39 Z M 61,35 L 69,35 L 69,39 L 61,39 Z"
+        android:fillColor="#E2E8F0" />
+
+    <!-- Keypad Grid Row 2 -->
+    <path
+        android:pathData="M 39,42 L 47,42 L 47,46 L 39,46 Z M 50,42 L 58,42 L 58,46 L 50,46 Z M 61,42 L 69,42 L 69,46 L 61,46 Z"
+        android:fillColor="#E2E8F0" />
+
+    <!-- Keypad Grid Row 3 -->
+    <path
+        android:pathData="M 39,49 L 47,49 L 47,53 L 39,53 Z M 50,49 L 58,49 L 58,53 L 50,53 Z M 61,49 L 69,49 L 69,53 L 61,53 Z"
+        android:fillColor="#E2E8F0" />
+
+    <!-- Yellow D-Pad Outer Ring -->
+    <path
+        android:pathData="M 54,73 m -13,0 a 13,13 0 1,1 26,0 a 13,13 0 1,1 -26,0"
+        android:strokeColor="#EEFF41"
+        android:strokeWidth="3.5"
+        android:fillColor="#00000000" />
+
+    <!-- Orange D-Pad Center Button -->
+    <path
+        android:pathData="M 54,73 m -7.5,0 a 7.5,7.5 0 1,1 15,0 a 7.5,7.5 0 1,1 -15,0"
+        android:fillColor="#FF9100" />
+
+</vector>
