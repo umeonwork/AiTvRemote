@@ -33,6 +33,7 @@ import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import com.squareup.moshi.Types
 import android.content.Context
+import org.json.JSONArray
 
 // Simple models matching the server API
 data class Device(val id: String, val name: String?, val socketId: String?, val lastSeen: Long?, val meta: Map<String, Any>?)
@@ -72,6 +73,11 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
+        // Initialize and connect socket manager
+        val base = System.getenv("AITV_API") ?: "http://10.0.2.2:3001"
+        SocketManager.init(base)
+        SocketManager.connect()
     }
 
     private fun createApi(): ApiService {
@@ -120,6 +126,61 @@ fun RemoteScreen(api: ApiService, appContext: Context) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
+    // Register socket callbacks to receive push updates
+    DisposableEffect(Unit) {
+        val devicesCb: (JSONArray) -> Unit = { arr ->
+            // parse JSONArray into List<Device>
+            try {
+                val list = mutableListOf<Device>()
+                for (i in 0 until arr.length()) {
+                    val o = arr.getJSONObject(i)
+                    val id = o.optString("id")
+                    val name = if (o.has("name")) o.optString("name") else null
+                    val socketId = if (o.has("socketId")) o.optString("socketId") else null
+                    list.add(Device(id, name, socketId, null, null))
+                }
+                devices = list
+            } catch (e: Exception) { /* ignore parse errors */ }
+        }
+
+        val pairCb: (String, String) -> Unit = { id, token ->
+            // If pairing in progress and id matches, finalize pairing
+            pairingInProgress?.let {
+                if (it.id == id) {
+                    scope.launch {
+                        // fetch device details
+                        try {
+                            val all = api.getDevices()
+                            val d = all.find { it.id == id }
+                            val pd = PairedDevice(id, d?.name ?: "Unknown", token)
+                            paired = (paired + pd).distinctBy { it.id }
+                            savePairedDevices(appContext, paired)
+                            pairingInProgress = null
+                            Toast.makeText(context, "Paired with ${pd.name}", Toast.LENGTH_SHORT).show()
+                        } catch (e: Exception) {
+                            // still add minimal
+                            val pd = PairedDevice(id, "Unknown", token)
+                            paired = (paired + pd).distinctBy { it.id }
+                            savePairedDevices(appContext, paired)
+                            pairingInProgress = null
+                            Toast.makeText(context, "Paired", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            }
+        }
+
+        SocketManager.onDevicesUpdate(devicesCb)
+        SocketManager.onPairConfirmed(pairCb)
+
+        onDispose {
+            // clear callbacks
+            SocketManager.onDevicesUpdate { }
+            SocketManager.onPairConfirmed { _, _ -> }
+        }
+    }
+
+    // initial load
     LaunchedEffect(Unit) {
         try {
             devices = api.getDevices()
@@ -163,28 +224,14 @@ fun RemoteScreen(api: ApiService, appContext: Context) {
                         try {
                             val resp = api.pairRequest(null)
                             pairingInProgress = resp
-                            // Start polling
+                            // Wait for pair:confirmed via SocketManager. Start timeout watcher.
                             val start = System.currentTimeMillis()
-                            var confirmed = false
-                            while (System.currentTimeMillis() - start < 120_000 && !confirmed) {
-                                delay(2000)
-                                try {
-                                    val status = api.pairStatus(resp.id)
-                                    if (status.confirmed && status.token != null) {
-                                        confirmed = true
-                                        // fetch devices and add to paired list
-                                        val all = api.getDevices()
-                                        val d = all.find { it.id == resp.id }
-                                        val pd = PairedDevice(resp.id, d?.name ?: "Unknown", status.token)
-                                        paired = (paired + pd).distinctBy { it.id }
-                                        savePairedDevices(appContext, paired)
-                                        Toast.makeText(context, "Paired with ${pd.name}", Toast.LENGTH_SHORT).show()
-                                    }
-                                } catch (e: Exception) {
-                                    // ignore transient
-                                }
+                            while (System.currentTimeMillis() - start < 120_000 && pairingInProgress != null) {
+                                delay(1000)
                             }
-                            if (!confirmed) {
+                            if (pairingInProgress != null) {
+                                // timed out
+                                pairingInProgress = null
                                 Toast.makeText(context, "Pairing timed out", Toast.LENGTH_SHORT).show()
                             }
                         } catch (e: Exception) {
