@@ -2,6 +2,7 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const { v4: uuidv4 } = require('uuid');
 
 const app = express();
 app.use(express.json());
@@ -11,6 +12,10 @@ const io = new Server(server, { cors: { origin: '*' } });
 
 // In-memory store for devices (id, name, lastSeen, socketId)
 const devices = new Map();
+
+// Pending pairing requests: id -> { pin, createdAt }
+const pendingPairs = new Map();
+const PAIR_TTL_MS = 1000 * 60 * 10; // 10 minutes
 
 // Device registers via WebSocket or HTTP; WebSocket is preferred for command relay
 io.on('connection', (socket) => {
@@ -61,6 +66,24 @@ app.post('/api/devices', (req, res) => {
   res.status(201).json({ ok: true });
 });
 
+// Pairing endpoints
+app.post('/api/pair/request', (req, res) => {
+  // Create a pairing id and PIN for a new pairing flow.
+  const id = uuidv4();
+  const pin = Math.floor(100000 + Math.random() * 900000).toString();
+  pendingPairs.set(id, { pin, createdAt: Date.now() });
+  console.log('pair requested', id, pin);
+  res.json({ id, pin });
+});
+
+app.get('/api/pair/status/:id', (req, res) => {
+  const id = req.params.id;
+  const pair = pendingPairs.get(id);
+  const deviceRegistered = devices.has(id);
+  const confirmed = deviceRegistered; // device registration confirms pairing
+  res.json({ confirmed, deviceRegistered, pair: pair ? { pin: pair.pin, createdAt: pair.createdAt } : null });
+});
+
 // HTTP: send command to device by id (will be emitted over socket.io if connected)
 app.post('/api/devices/:id/command', (req, res) => {
   const id = req.params.id;
@@ -87,6 +110,16 @@ function sendToTvBridge(device, command, params) {
   //
   // This function is intentionally left as a small hook to implement per-device logic.
 }
+
+// Cleanup old pending pairs
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, p] of pendingPairs.entries()) {
+    if (now - p.createdAt > PAIR_TTL_MS) {
+      pendingPairs.delete(id);
+    }
+  }
+}, 1000 * 60);
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => console.log(`server listening on ${PORT}`));
