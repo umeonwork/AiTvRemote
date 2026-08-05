@@ -7,7 +7,7 @@ android {
 
     defaultConfig {
         applicationId "com.umeonwork.aitvremote"
-        minSdk 21
+        minSdk 23
         targetSdk 34
         versionCode 1
         versionName "0.1"
@@ -49,6 +49,13 @@ dependencies {
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
 
     implementation 'com.squareup.moshi:moshi-kotlin:1.15.0'
+
+    // Encrypted shared preferences
+    implementation 'androidx.security:security-crypto:1.1.0'
+
+    // Socket.IO client for Android
+    implementation 'io.socket:socket.io-client:2.0.1'
+    implementation 'org.json:json:20230618'
 
     debugImplementation 'androidx.compose.ui:ui-tooling:1.5.0'
 }
